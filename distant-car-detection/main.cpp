@@ -35,10 +35,9 @@ float correlation(Mat reg_prop, vector<string> model_list)
 {
     float corr = 0.0, pt = 0, sum_T= 0, sum_R = 0, template_count = 0;
     Scalar ssim=0;
-    Mat T;
+    Mat T,R;
     int index = 0;
     T = imread(model_list[0], 0);
-    Mat R;
     resize(reg_prop, R, Size(T.size()), 0, 0);
     R.convertTo(R, CV_32F);
     sum_R = sum(R)[0];
@@ -118,7 +117,11 @@ int main(int, char**)
         while (epdf = readdir(dpdf))
         {
             string file = epdf->d_name;
-            files.push_back("./model_distant/"+ file);
+            // this condition avoids addition of "." and ".." pointers to the templates list
+            if(file.length() > 4)
+            {
+                files.push_back("./model_distant/"+ file);
+            }
         }
     }
     closedir(dpdf);
