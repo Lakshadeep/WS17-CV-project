@@ -31,6 +31,14 @@ int delta = 0;
 int ddepth = CV_16S;
 RNG rng(12345);
 
+/// Directory/File paths
+string test_data_directory = "/media/lakshadeep/Common/MAS/Semester2/computer_vision/project_final/test_data/";
+string test_file = "0009.avi";
+string model_directory = "/media/lakshadeep/Common/MAS/Semester2/computer_vision/project_final/models/distant/";
+string experiment_results_directory = "/media/lakshadeep/Common/MAS/Semester2/computer_vision/project_final/experiment_results/";
+
+
+
 float correlation(Mat reg_prop, vector<string> model_list)
 {
     float corr = 0.0, pt = 0, sum_T= 0, sum_R = 0, template_count = 0;
@@ -101,7 +109,7 @@ Scalar getMSSIM( const Mat& i1, const Mat& i2)
 
 int main(int, char**)
 {
-    VideoCapture cap("./0008.avi"); // open the default camera
+    VideoCapture cap(test_data_directory + test_file); // open the default camera
     if(!cap.isOpened())
     {
         std::cout << "Failed to open" << std::endl;
@@ -111,7 +119,7 @@ int main(int, char**)
     vector<string> files;
     DIR *dpdf;
     struct dirent *epdf;
-    dpdf = opendir("./model_distant");
+    dpdf = opendir(model_directory.c_str());
     if(dpdf!= NULL)
     {
         while (epdf = readdir(dpdf))
@@ -120,7 +128,7 @@ int main(int, char**)
             // this condition avoids addition of "." and ".." pointers to the templates list
             if(file.length() > 4)
             {
-                files.push_back("./model_distant/"+ file);
+                files.push_back(model_directory + file);
             }
         }
     }
