@@ -1,0 +1,50 @@
+# depslib dependency file v1.0
+1512897793 source:/home/nareshguru77/Documents/learning_materials/Semester_2/Computer_Vision/project/computer-vision/Task2_svm/main.cpp
+	<opencv2/core.hpp>
+	<opencv2/imgcodecs.hpp>
+	<opencv2/highgui.hpp>
+	<iostream>
+	<string>
+	"opencv2/opencv.hpp"
+	<stdio.h>
+	<stdlib.h>
+	<vector>
+	<math.h>
+	<dirent.h>
+	"SupportVectorMachine.h"
+
+1512896284 /home/nareshguru77/Documents/learning_materials/Semester_2/Computer_Vision/project/computer-vision/Task2_svm/include/svm.h
+	<opencv2/core.hpp>
+	<opencv2/imgcodecs.hpp>
+	<opencv2/highgui.hpp>
+	"opencv2/opencv.hpp"
+	<iostream>
+	<string>
+	<stdio.h>
+	<stdlib.h>
+	<vector>
+	<map>
+	<math.h>
+	<dirent.h>
+
+1512896540 source:/home/nareshguru77/Documents/learning_materials/Semester_2/Computer_Vision/project/computer-vision/Task2_svm/src/svm.cpp
+	"svm.h"
+
+1512903274 /home/nareshguru77/Documents/learning_materials/Semester_2/Computer_Vision/project/computer-vision/Task2_svm/include/SupportVectorMachine.h
+	<opencv2/core.hpp>
+	<opencv2/imgcodecs.hpp>
+	<opencv2/highgui.hpp>
+	"opencv2/opencv.hpp"
+	<iostream>
+	<string>
+	<stdio.h>
+	<stdlib.h>
+	<vector>
+	<map>
+	<math.h>
+	<dirent.h>
+	<opencv2/ml.hpp>
+
+1512897158 source:/home/nareshguru77/Documents/learning_materials/Semester_2/Computer_Vision/project/computer-vision/Task2_svm/src/SupportVectorMachine.cpp
+	"SupportVectorMachine.h"
+
