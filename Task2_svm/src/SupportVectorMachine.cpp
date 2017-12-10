@@ -4,13 +4,12 @@ SupportVectorMachine::SupportVectorMachine(vector<string> vehicleFiles, vector<s
 {
     cars = vehicleFiles;
     noCars = noVehicleFiles;
-    isTrainingComplete = false;
 }
 
-SupportVectorMachine::SupportVectorMachine(Mat image)
+// Constructor for test..
+SupportVectorMachine::SupportVectorMachine()
 {
-    testImage = image;
-    isTrainingComplete = true;
+
 }
 
 SupportVectorMachine::~SupportVectorMachine()
@@ -23,22 +22,26 @@ pair<int, float> SupportVectorMachine::startSvm()
     pair<int, float> clfConfidence;
     map<int, Mat> trainData;
     pair<Mat, Mat> hogFeaturesLabels;
+
+    trainData = SupportVectorMachine::createTrainData();
+    cout<<"Total training data.."<<trainData.size()<<endl;
+    hogFeaturesLabels = SupportVectorMachine::extractHogFeatures(trainData);
+    SupportVectorMachine::trainSVM(hogFeaturesLabels);
+    clfConfidence.first = 0;
+    clfConfidence.second = 0;
+    return clfConfidence;
+}
+
+// method for test..
+pair<int, float> SupportVectorMachine::startSvm(Mat image)
+{
+    pair<int, float> clfConfidence;
     Mat testFeatures;
 
-    if (!isTrainingComplete){
-        trainData = SupportVectorMachine::createTrainData();
-        cout<<"Total training data.."<<trainData.size()<<endl;
-        hogFeaturesLabels = SupportVectorMachine::extractHogFeatures(trainData);
-        SupportVectorMachine::trainSVM(hogFeaturesLabels);
-        clfConfidence.first = 0;
-        clfConfidence.second = 0;
-        return clfConfidence;
-    }
-    else {
-        testFeatures = SupportVectorMachine::extractHogFeatures();
-        clfConfidence = SVMpredict(testFeatures);
-        return clfConfidence;
-    }
+    testImage = image;
+    testFeatures = SupportVectorMachine::extractHogFeatures();
+    clfConfidence = SVMpredict(testFeatures);
+    return clfConfidence;
 }
 
 pair<int, float> SupportVectorMachine::SVMpredict(Mat testFeatures)

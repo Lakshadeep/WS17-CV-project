@@ -56,16 +56,15 @@ int main()
     // Testing positive sample..
     cout<<"Testing positive sample..."<<endl;
     testImage = imread("./svm_data/vehicles/1.png", 0);
-    SupportVectorMachine svmObjPos (testImage);
-    clfConfidence = svmObjPos.startSvm();
+    SupportVectorMachine svmObj;
+    clfConfidence = svmObj.startSvm(testImage);
     cout<<"Predicted class:  "<<clfConfidence.first<<endl;
     cout<<"Prediction confidence:  "<<clfConfidence.second<<endl;
 
     // Testing negative sample..
     cout<<"Testing negative sample..."<<endl;
-    testImage = imread("./svm_data/non-vehicles/extra1.png", 0);
-    SupportVectorMachine svmObjNeg (testImage);
-    clfConfidence = svmObjNeg.startSvm();
+    testImage = imread("./svm_data/non-vehicles/extra10.png", 0);
+    clfConfidence = svmObj.startSvm(testImage);
     cout<<"Predicted class:  "<<clfConfidence.first<<endl;
     cout<<"Prediction confidence:  "<<clfConfidence.second<<endl;
 

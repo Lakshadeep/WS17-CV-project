@@ -27,10 +27,11 @@ class SupportVectorMachine
         Mat testImage;
 
         SupportVectorMachine(vector<string>, vector<string>);
-        SupportVectorMachine(Mat);
+        SupportVectorMachine();
         virtual ~SupportVectorMachine();
 
         pair<int, float> startSvm();
+        pair<int, float> startSvm(Mat);
         map<int, Mat> createTrainData();
         pair<Mat, Mat> extractHogFeatures(map<int, Mat>);
         Mat extractHogFeatures();
