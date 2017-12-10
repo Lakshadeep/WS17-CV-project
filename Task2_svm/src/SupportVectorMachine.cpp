@@ -7,8 +7,9 @@ SupportVectorMachine::SupportVectorMachine(vector<string> vehicleFiles, vector<s
     isTrainingComplete = false;
 }
 
-SupportVectorMachine::SupportVectorMachine()
+SupportVectorMachine::SupportVectorMachine(Mat image)
 {
+    testImage = image;
     isTrainingComplete = true;
 }
 
@@ -17,23 +18,53 @@ SupportVectorMachine::~SupportVectorMachine()
     //dtor
 }
 
-int SupportVectorMachine::startSvm()
+pair<int, float> SupportVectorMachine::startSvm()
 {
+    pair<int, float> clfConfidence;
     map<int, Mat> trainData;
     pair<Mat, Mat> hogFeaturesLabels;
-    trainData = SupportVectorMachine::createTrainData();
-    cout<<"Train data vehicles:.."<<trainData.size()<<endl;
+    Mat testFeatures;
 
-    hogFeaturesLabels = SupportVectorMachine::extractHogFeatures(trainData);
     if (!isTrainingComplete){
+        trainData = SupportVectorMachine::createTrainData();
+        cout<<"Total training data.."<<trainData.size()<<endl;
+        hogFeaturesLabels = SupportVectorMachine::extractHogFeatures(trainData);
         SupportVectorMachine::trainSVM(hogFeaturesLabels);
+        clfConfidence.first = 0;
+        clfConfidence.second = 0;
+        return clfConfidence;
     }
-    return trainData.size();
+    else {
+        testFeatures = SupportVectorMachine::extractHogFeatures();
+        clfConfidence = SVMpredict(testFeatures);
+        return clfConfidence;
+    }
 }
 
-int SupportVectorMachine::SVMpredict(Mat testImage)
+pair<int, float> SupportVectorMachine::SVMpredict(Mat testFeatures)
 {
-    return 0;
+    pair<int, float> clfConfidence;
+    Ptr<SVM> svm = svm->load("cars.yml");
+    clfConfidence.first = svm->predict(testFeatures);
+    clfConfidence.second = 0;
+    return clfConfidence;
+}
+
+Mat SupportVectorMachine::extractHogFeatures()
+{
+    HOGDescriptor hog;
+    vector< float> descriptors;
+    vector< Point> locations;
+
+    Mat testDataMat(1, 34020, CV_32FC1);
+    int curCol = 0;
+
+    resize(testImage, testImage, Size(128, 128));
+    hog.compute(testImage, descriptors, Size(8, 8), Size(0, 0), locations);
+    for (int desIndex = 0; desIndex < descriptors.size(); desIndex++) {
+        testDataMat.at<float>(0,curCol++) = descriptors.at(desIndex);
+    }
+    return testDataMat;
 }
 
 pair<Mat, Mat> SupportVectorMachine::extractHogFeatures(map<int, Mat> trainData)
@@ -43,6 +74,7 @@ pair<Mat, Mat> SupportVectorMachine::extractHogFeatures(map<int, Mat> trainData)
     HOGDescriptor hog;
     vector< float> descriptors;
     vector< Point> locations;
+
     Mat trainingDataMat(numTrainImages, 34020, CV_32FC1); //34020 size of hog features
     Mat labelsMat(numTrainImages, 1, CV_32SC1);
     int curCol = 0, index = 0;
