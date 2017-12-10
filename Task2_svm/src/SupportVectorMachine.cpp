@@ -9,7 +9,7 @@ SupportVectorMachine::SupportVectorMachine(vector<string> vehicleFiles, vector<s
 // Constructor for test..
 SupportVectorMachine::SupportVectorMachine()
 {
-
+	svmTest = svmTest->load("cars.yml");
 }
 
 SupportVectorMachine::~SupportVectorMachine()
@@ -47,8 +47,7 @@ pair<int, float> SupportVectorMachine::startSvm(Mat image)
 pair<int, float> SupportVectorMachine::SVMpredict(Mat testFeatures)
 {
     pair<int, float> clfConfidence;
-    Ptr<SVM> svm = svm->load("cars.yml");
-    clfConfidence.first = svm->predict(testFeatures);
+    clfConfidence.first = svmTest->predict(testFeatures);
     clfConfidence.second = 0;
     return clfConfidence;
 }

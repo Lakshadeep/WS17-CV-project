@@ -25,6 +25,7 @@ class SupportVectorMachine
         bool isTrainingComplete = false;
         vector<string> cars, noCars;
         Mat testImage;
+		Ptr<SVM> svmTest;
 
         SupportVectorMachine(vector<string>, vector<string>);
         SupportVectorMachine();
