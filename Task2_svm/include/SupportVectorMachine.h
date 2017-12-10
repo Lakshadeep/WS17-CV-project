@@ -24,13 +24,17 @@ class SupportVectorMachine
     public:
         bool isTrainingComplete = false;
         vector<string> cars, noCars;
+        Mat testImage;
+
         SupportVectorMachine(vector<string>, vector<string>);
+        SupportVectorMachine();
         virtual ~SupportVectorMachine();
+
         int startSvm();
         map<int, Mat> createTrainData();
-        void extractHogFeatures(map<int, Mat>);
-        void trainSVM(map<int, Mat>);
-        void isAlreadyTrained();
+        pair<Mat, Mat> extractHogFeatures(map<int, Mat>);
+        void trainSVM(pair<Mat, Mat>);
+        int SVMpredict(Mat);
     protected:
     private:
 };

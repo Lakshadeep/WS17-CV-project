@@ -4,6 +4,12 @@ SupportVectorMachine::SupportVectorMachine(vector<string> vehicleFiles, vector<s
 {
     cars = vehicleFiles;
     noCars = noVehicleFiles;
+    isTrainingComplete = false;
+}
+
+SupportVectorMachine::SupportVectorMachine()
+{
+    isTrainingComplete = true;
 }
 
 SupportVectorMachine::~SupportVectorMachine()
@@ -14,64 +20,65 @@ SupportVectorMachine::~SupportVectorMachine()
 int SupportVectorMachine::startSvm()
 {
     map<int, Mat> trainData;
+    pair<Mat, Mat> hogFeaturesLabels;
     trainData = SupportVectorMachine::createTrainData();
     cout<<"Train data vehicles:.."<<trainData.size()<<endl;
 
-    SupportVectorMachine::extractHogFeatures(trainData);
-    SupportVectorMachine::trainSVM(trainData);
+    hogFeaturesLabels = SupportVectorMachine::extractHogFeatures(trainData);
+    if (!isTrainingComplete){
+        SupportVectorMachine::trainSVM(hogFeaturesLabels);
+    }
     return trainData.size();
 }
 
-void SupportVectorMachine::isAlreadyTrained()
+int SupportVectorMachine::SVMpredict(Mat testImage)
 {
-
+    return 0;
 }
 
-void SupportVectorMachine::extractHogFeatures(map<int, Mat> trainData)
+pair<Mat, Mat> SupportVectorMachine::extractHogFeatures(map<int, Mat> trainData)
 {
+    int numTrainImages = 10000;
     Mat img;
     HOGDescriptor hog;
     vector< float> descriptors;
     vector< Point> locations;
-    img = trainData[1];
-    //namedWindow("Image", CV_WINDOW_AUTOSIZE );
-    //imshow("Image", imgGray);
-    //waitKey(0);
-    hog.compute(img, descriptors, Size(64, 64), Size(0, 0), locations);
-    cout<<"Hog values:..."<<endl;
-    cout<<descriptors.size()<<endl;
-    cout<<locations.size()<<endl;
-}
-
-void SupportVectorMachine::trainSVM(map<int, Mat> trainData)
-{
-
-    Mat trainingDataMat(4, trainData[0].rows * trainData[0].cols, CV_32FC1);
-    Mat labelsMat(4, 1, CV_32SC1);
-
+    Mat trainingDataMat(numTrainImages, 34020, CV_32FC1); //34020 size of hog features
+    Mat labelsMat(numTrainImages, 1, CV_32SC1);
     int curCol = 0, index = 0;
-    for(int imIndex = -2; imIndex < 2; imIndex++) {
-        for (int rowIndex = 0; rowIndex < trainData[imIndex].rows; rowIndex++) {
-            for (int colIndex = 0; colIndex < trainData[imIndex].cols; colIndex++) {
-                trainingDataMat.at<float>(index,curCol++) = trainData[imIndex].at<uchar>(rowIndex,colIndex);
-                }
-            }
+
+    for(int imIndex = -numTrainImages/2; imIndex < numTrainImages/2; imIndex++) {
+        img = trainData[imIndex];
+        resize(img, img, Size(128, 128));
+        hog.compute(img, descriptors, Size(8, 8), Size(0, 0), locations);
+        for (int desIndex = 0; desIndex < descriptors.size(); desIndex++) {
+            trainingDataMat.at<float>(index,curCol++) = descriptors.at(desIndex);
+        }
         if (imIndex >= 0) {
-            labelsMat.at<float>(index, 0) = 1;
+            labelsMat.at<float>(index) = 1;
         }
         else {
-            labelsMat.at<float>(index, 0) = -1;
+            labelsMat.at<float>(index) = -1;
         }
         curCol = 0;
         index++;
     }
+    pair<Mat, Mat> hogFeaturesLabels;
+    hogFeaturesLabels.first.push_back(trainingDataMat);
+    hogFeaturesLabels.second.push_back(labelsMat);
+    return hogFeaturesLabels;
+}
+
+void SupportVectorMachine::trainSVM(pair<Mat, Mat> svmData)
+{
 
     Ptr<SVM> svm = SVM::create();
     svm->setType(SVM::C_SVC);
     svm->setKernel(SVM::LINEAR);
     svm->setTermCriteria(TermCriteria(TermCriteria::MAX_ITER, 100, 1e-6));
-    svm->train(trainingDataMat, ROW_SAMPLE, labelsMat);
+    svm->train(svmData.first, ROW_SAMPLE, svmData.second);
     svm->save("cars.yml");
+    cout<<"SVM has been trained..."<<endl;
 }
 
 map<int, Mat> SupportVectorMachine::createTrainData()
