@@ -10,8 +10,10 @@
 #include <math.h>
 #include <dirent.h>
 #include "SupportVectorMachine.h"
+#include "opencv2/ximgproc/segmentation.hpp"
 
 using namespace std;
+using namespace cv::ximgproc::segmentation;
 
 int main()
 {
@@ -50,24 +52,69 @@ int main()
 
 //------------------------------------------------------------------
 // For testing the svm...
-    Mat testImage;
-    pair<int, float> clfConfidence;
+//    Mat testImage;
+//    pair<int, float> clfConfidence;
 
     // Testing positive sample..
-    cout<<"Testing positive sample..."<<endl;
-    testImage = imread("./svm_data/vehicles/1.png", 0);
-    SupportVectorMachine svmObj;
-    clfConfidence = svmObj.startSvm(testImage);
-    cout<<"Predicted class:  "<<clfConfidence.first<<endl;
-    cout<<"Prediction confidence:  "<<clfConfidence.second<<endl;
-
-    // Testing negative sample..
-    cout<<"Testing negative sample..."<<endl;
-    testImage = imread("./svm_data/non-vehicles/extra10.png", 0);
-    clfConfidence = svmObj.startSvm(testImage);
-    cout<<"Predicted class:  "<<clfConfidence.first<<endl;
-    cout<<"Prediction confidence:  "<<clfConfidence.second<<endl;
+//    cout<<"Testing positive sample..."<<endl;
+//    testImage = imread("./svm_data/vehicles/5110.png", 0);
+//    SupportVectorMachine svmObj;
+//    clfConfidence = svmObj.startSvm(testImage);
+//    cout<<"Predicted class:  "<<clfConfidence.first<<endl;
+//    cout<<"Prediction confidence:  "<<clfConfidence.second<<endl;
+//
+//    // Testing negative sample..
+//    cout<<"Testing negative sample..."<<endl;
+//    testImage = imread("./svm_data/non-vehicles/extra5060.png", 0);
+//    clfConfidence = svmObj.startSvm(testImage);
+//    cout<<"Predicted class:  "<<clfConfidence.first<<endl;
+//    cout<<"Prediction confidence:  "<<clfConfidence.second<<endl;
 
 //------------------------------------------------------------------
+
+    SupportVectorMachine svmObj;
+    pair<int, float> clfConfidence;
+
+    Mat frame, frameGray, region;
+    VideoCapture cap("./0008_manual.avi"); // open the default camera
+    if(!cap.isOpened())
+    {
+        std::cout << "Failed to open" << std::endl;
+        return -1;
+    }
+
+    cap >> frame; // get a new frame from camera
+    VideoWriter video("result_0008.avi",CV_FOURCC('M','J','P','G'),10, Size(frame.cols,frame.rows),true);
+
+    namedWindow("Result", CV_WINDOW_AUTOSIZE );
+
+    for(;;)
+    {
+        cap >> frame; // get a new frame from camera
+        if(!frame.empty())
+        {
+            cvtColor(frame, frameGray, CV_BGR2GRAY );
+            int windowSize = 50,stepSize = 30;
+
+            for(int i = 0; i < frameGray.rows - windowSize ; )
+            {
+                for(int j = 0; j < frameGray.cols - windowSize;  )
+                {
+                    Rect roi(j, i, windowSize, windowSize);
+                    region = frameGray(roi);
+                    clfConfidence = svmObj.startSvm(region);
+                    if (clfConfidence.first > 0){
+                        cv::rectangle(frame,cv::Point(j, i),cv::Point(j + windowSize, i + windowSize),cv::Scalar(0, 0, 255));
+                    }
+                    j = j + stepSize;
+                }
+                i = i + stepSize;
+            }
+            video.write(frame);
+
+            imshow("Result", frame);
+            if(waitKey(10) >= 0) break;
+        }
+    }
     return 0;
 }
