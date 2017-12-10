@@ -49,23 +49,39 @@ void SupportVectorMachine::trainSVM(map<int, Mat> trainData)
     int numImages = 2;
     int imgArea = 64*64;
     Mat trainingDataMat(numImages,imgArea,CV_32FC1);
+    Mat labelsMat(numImages, 1, CV_32SC1);
 
     int curCol = 0;
     for(int imIndex = 0; imIndex < numImages; imIndex++) {
         for (int rowIndex = 0; rowIndex < trainData[imIndex].rows; rowIndex++) {
             for (int colIndex = 0; colIndex < trainData[imIndex].cols; colIndex++) {
-                trainingDataMat.at<float>(0,curCol++) = trainData[imIndex].at<uchar>(rowIndex,colIndex);
+                trainingDataMat.at<float>(imIndex,curCol++) = trainData[imIndex].at<uchar>(rowIndex,colIndex);
+                if (imIndex > 0) {
+                    labelsMat.at<float>(imIndex, 1) = 1;
+                }
+                else {
+                    labelsMat.at<float>(imIndex, 1) = -1;
+                }
             }
         }
     }
-    cout<<"svm mat size: "<<trainingDataMat.size()<<endl;
+
+    cout<<"SVM Training data size:  "<<trainingDataMat.size()<<endl;
+    cout<<"SVM Label data size:  "<<labelsMat.size()<<endl;
+
+    Ptr<SVM> svm = SVM::create();
+    svm->setType(SVM::C_SVC);
+    svm->setKernel(SVM::LINEAR);
+    svm->setTermCriteria(TermCriteria(TermCriteria::MAX_ITER, 100, 1e-6));
+    svm->train(trainingDataMat, ROW_SAMPLE, labelsMat);
+    svm->save("cars.yaml");
 }
 
 map<int, Mat> SupportVectorMachine::createTrainData()
 {
     map<int, Mat> trainData;
 
-    int key = 1;
+    int key = 0;
     for(int index = 0; index < cars.size(); index++ )
     {
         if(cars[index].find(".png") != string::npos)
