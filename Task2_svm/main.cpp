@@ -46,7 +46,9 @@ int main()
 //        }
 //    }
 //    closedir(dpdf);
+//
 //    SupportVectorMachine svmObj (vehicleFiles, noVehicleFiles);
+//    svmObj.startSvm();
 //------------------------------------------------------------------
 
 
@@ -95,6 +97,7 @@ int main()
         {
             cvtColor(frame, frameGray, CV_BGR2GRAY );
             int windowSize = 50,stepSize = 30;
+            string scoreString;
 
             for(int i = 0; i < frameGray.rows - windowSize ; )
             {
@@ -105,6 +108,9 @@ int main()
                     clfConfidence = svmObj.startSvm(region);
                     if (clfConfidence.first > 0){
                         cv::rectangle(frame,cv::Point(j, i),cv::Point(j + windowSize, i + windowSize),cv::Scalar(0, 0, 255));
+                        scoreString = to_string(clfConfidence.second);
+                        scoreString.erase(scoreString.find_last_not_of('0') + 1, string::npos );
+                        putText(frame, scoreString, cv::Point(j, i + 12), FONT_HERSHEY_PLAIN, 1,cv::Scalar(0, 255, 0), 2);
                     }
                     j = j + stepSize;
                 }
