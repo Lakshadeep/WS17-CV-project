@@ -25,6 +25,7 @@ pair<int, float> SupportVectorMachine::startSvm()
 
     trainData = SupportVectorMachine::createTrainData();
     cout<<"Total training data.."<<trainData.size()<<endl;
+    cout<<"Positive Training data: "<<positiveExamples<<" Negative Training data: "<<negativeExamples<<endl;
     hogFeaturesLabels = SupportVectorMachine::extractHogFeatures(trainData);
     SupportVectorMachine::trainSVM(hogFeaturesLabels);
     clfConfidence.first = 0;
@@ -53,55 +54,70 @@ pair<int, float> SupportVectorMachine::SVMpredict(Mat testFeatures)
     return clfConfidence;
 }
 
+Mat SupportVectorMachine::computeHog(Mat image) {
+
+    Mat featuresMat, imageGray, imageYCrCb, imageYCrCbChannels[3];
+    vector< float> descriptorsGray, descriptorsCh1, descriptorsCh2, descriptorsCh3;
+
+    cvtColor(image, imageGray, CV_BGR2GRAY);
+    cvtColor(image, imageYCrCb, CV_BGR2YCrCb);
+    split(imageYCrCb, imageYCrCbChannels);
+
+    hog.compute(imageGray, descriptorsGray, Size(8, 8), Size(2, 2));
+    transpose(Mat(descriptorsGray).clone(), featuresMat);
+
+    hog.compute(imageYCrCbChannels[0], descriptorsCh1, Size(8, 8), Size(2, 2));
+    transpose(Mat(descriptorsCh1).clone(), descriptorsCh1);
+    hconcat(featuresMat, descriptorsCh1, featuresMat);
+
+    hog.compute(imageYCrCbChannels[1], descriptorsCh2, Size(8, 8), Size(2, 2));
+    transpose(Mat(descriptorsCh2).clone(), descriptorsCh2);
+    hconcat(featuresMat, descriptorsCh2, featuresMat);
+
+    hog.compute(imageYCrCbChannels[2], descriptorsCh3, Size(8, 8), Size(2, 2));
+    transpose(Mat(descriptorsCh3).clone(), descriptorsCh3);
+    hconcat(featuresMat, descriptorsCh3, featuresMat);
+
+    return featuresMat;
+}
+
 Mat SupportVectorMachine::extractHogFeatures()
 {
     Scalar mean, standardDeviation;
-    HOGDescriptor hog;
-    //hog.winSize.height = 64;
-    vector< float> descriptors;
-    vector< Point> locations;
-    Mat testDataMat(1, 34020, CV_32FC1);
-    int curCol = 0;
+    hog.winSize.height = 64;
 
-    resize(testImage, testImage, Size(128, 128));
-    hog.compute(testImage, descriptors, Size(8, 8), Size(0, 0), locations);
-    for (int desIndex = 0; desIndex < descriptors.size(); desIndex++) {
-        testDataMat.at<float>(0,curCol++) = descriptors.at(desIndex);
-    }
+    resize(testImage, testImage, Size(64, 64));
+    Mat featuresMat = SupportVectorMachine::computeHog(testImage);
+    Mat testDataMat(1, featuresMat.cols, CV_32FC1);
+    featuresMat.copyTo(testDataMat.row(0));
 
     meanStdDev ( testDataMat.row(0), mean, standardDeviation );
-    for (int teMatIndex = 0; teMatIndex <= curCol; teMatIndex++) {
+    for (int teMatIndex = 0; teMatIndex <= featuresMat.cols; teMatIndex++) {
         testDataMat.at<float>(0,teMatIndex) -= mean[0];
         testDataMat.at<float>(0,teMatIndex) /= standardDeviation[0];
     }
+
     return testDataMat;
 }
 
 pair<Mat, Mat> SupportVectorMachine::extractHogFeatures(map<int, Mat> trainData)
 {
     int numTrainImages = positiveExamples + negativeExamples;
-    Mat img;
+    Mat img, featuresMat;
     Scalar mean, standardDeviation;
-    HOGDescriptor hog;
-    //hog.winSize.width = 128;
-    cout<<"Pos: "<<positiveExamples<<" Neg: "<<negativeExamples<<endl;
-    vector< float> descriptors;
-    vector< Point> locations;
+    hog.winSize.height = 64;
 
-    Mat trainingDataMat(numTrainImages, 34020, CV_32FC1); //64260 size of hog features for 4x4
+    featuresMat = SupportVectorMachine::computeHog(trainData[0]);
+    Mat trainingDataMat(numTrainImages, featuresMat.cols, CV_32FC1);
     Mat labelsMat(numTrainImages, 1, CV_32SC1);
-    int curCol = 0, index = 0;
+    int index = 0;
 
     for(int imIndex = -negativeExamples; imIndex < positiveExamples; imIndex++) {
-        img = trainData[imIndex];
-        resize(img, img, Size(128, 128));
-        hog.compute(img, descriptors, Size(8, 8), Size(0, 0), locations);
-        for (int desIndex = 0; desIndex < descriptors.size(); desIndex++) {
-            trainingDataMat.at<float>(index,curCol++) = descriptors.at(desIndex);
-        }
 
+        featuresMat = SupportVectorMachine::computeHog(trainData[imIndex]);
+        featuresMat.copyTo(trainingDataMat.row(index));
         meanStdDev ( trainingDataMat.row(index), mean, standardDeviation );
-        for (int trMatIndex = 0; trMatIndex <= curCol; trMatIndex++) {
+        for (int trMatIndex = 0; trMatIndex <= featuresMat.cols; trMatIndex++) {
             trainingDataMat.at<float>(index,trMatIndex) -= mean[0];
             trainingDataMat.at<float>(index,trMatIndex) /= standardDeviation[0];
         }
@@ -112,11 +128,10 @@ pair<Mat, Mat> SupportVectorMachine::extractHogFeatures(map<int, Mat> trainData)
         else {
             labelsMat.at<float>(index) = -1;
         }
-        curCol = 0;
         index++;
     }
-    pair<Mat, Mat> hogFeaturesLabels;
 
+    pair<Mat, Mat> hogFeaturesLabels;
     hogFeaturesLabels.first.push_back(trainingDataMat);
     hogFeaturesLabels.second.push_back(labelsMat);
     return hogFeaturesLabels;
@@ -132,9 +147,10 @@ void SupportVectorMachine::trainSVM(pair<Mat, Mat> svmData)
     svm->setKernel(SVM::LINEAR);
     svm->setTermCriteria(TermCriteria( CV_TERMCRIT_ITER+CV_TERMCRIT_EPS, 100, 1e-6 ));
     //svm->setGamma(0);
-    svm->setNu(0.5);
-    svm->setP(0.1);
-    svm->setC(0.01);
+    //svm->setNu(0.5);
+    //svm->setP(0.1);
+    //svm->setC(0.01);
+    //svm->trainAuto(svmData.first, ROW_SAMPLE, svmData.second);
     svm->train(svmData.first, ROW_SAMPLE, svmData.second);
     svm->save("cars.yml");
     cout<<"SVM has been trained..."<<endl;
@@ -149,7 +165,7 @@ map<int, Mat> SupportVectorMachine::createTrainData()
     {
         if(cars[index].find(".png") != string::npos)
         {
-            Mat img = imread(cars[index], 0);
+            Mat img = imread(cars[index], 1);
             trainData[key] = img;
             key++;
             positiveExamples++;
@@ -161,7 +177,7 @@ map<int, Mat> SupportVectorMachine::createTrainData()
     {
         if(noCars[index].find(".png") != string::npos)
         {
-            Mat img = imread(noCars[index], 0);
+            Mat img = imread(noCars[index], 1);
             trainData[key] = img;
             key--;
             negativeExamples++;

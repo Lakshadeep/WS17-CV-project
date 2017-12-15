@@ -36,6 +36,50 @@ int main()
 //    }
 //    closedir(dpdf);
 //
+//    dpdf = opendir("./svm_data/vehicles_GTI_Far/");
+//    if(dpdf!= NULL)
+//    {
+//        while (epdf = readdir(dpdf))
+//        {
+//            string file = epdf->d_name;
+//            vehicleFiles.push_back("./svm_data/vehicles_GTI_Far/"+ file);
+//        }
+//    }
+//    closedir(dpdf);
+//
+//    dpdf = opendir("./svm_data/vehicles_GTI_Left/");
+//    if(dpdf!= NULL)
+//    {
+//        while (epdf = readdir(dpdf))
+//        {
+//            string file = epdf->d_name;
+//            vehicleFiles.push_back("./svm_data/vehicles_GTI_Left/"+ file);
+//        }
+//    }
+//    closedir(dpdf);
+//
+//	dpdf = opendir("./svm_data/vehicles_GTI_MiddleClose/");
+//    if(dpdf!= NULL)
+//    {
+//        while (epdf = readdir(dpdf))
+//        {
+//            string file = epdf->d_name;
+//            vehicleFiles.push_back("./svm_data/vehicles_GTI_MiddleClose/"+ file);
+//        }
+//    }
+//    closedir(dpdf);
+//
+//	dpdf = opendir("./svm_data/vehicles_GTI_Right/");
+//    if(dpdf!= NULL)
+//    {
+//        while (epdf = readdir(dpdf))
+//        {
+//            string file = epdf->d_name;
+//            vehicleFiles.push_back("./svm_data/vehicles_GTI_Right/"+ file);
+//        }
+//    }
+//    closedir(dpdf);
+//
 //    dpdf = opendir("./svm_data/non-vehicles/");
 //    if(dpdf!= NULL)
 //    {
@@ -43,6 +87,17 @@ int main()
 //        {
 //            string file = epdf->d_name;
 //            noVehicleFiles.push_back("./svm_data/non-vehicles/"+ file);
+//        }
+//    }
+//    closedir(dpdf);
+//
+//    dpdf = opendir("./svm_data/non-vehicles_GTI/");
+//    if(dpdf!= NULL)
+//    {
+//        while (epdf = readdir(dpdf))
+//        {
+//            string file = epdf->d_name;
+//            noVehicleFiles.push_back("./svm_data/non-vehicles_GTI/"+ file);
 //        }
 //    }
 //    closedir(dpdf);
@@ -77,37 +132,60 @@ int main()
     SupportVectorMachine svmObj;
     pair<int, float> clfConfidence;
 
-    Mat frame, frameGray, region;
-    VideoCapture cap("./0008_manual.avi"); // open the default camera
+    Mat frame, frameGT, frameGray, region, regionGT, frameYCrCb;
+    VideoCapture cap("./0008_xvid.avi");
     if(!cap.isOpened())
     {
         std::cout << "Failed to open" << std::endl;
         return -1;
     }
 
-    cap >> frame; // get a new frame from camera
-    VideoWriter video("result_0008.avi",CV_FOURCC('M','J','P','G'),10, Size(frame.cols,frame.rows),true);
+    VideoCapture capGT("./0008_GT.avi");
+    if(!capGT.isOpened())
+    {
+        std::cout << "Failed to open" << std::endl;
+        return -1;
+    }
+
+    cap >> frame;
+    capGT >> frameGT;
+    VideoWriter video("result_0008.avi",CV_FOURCC('X','V','I','D'), 10 , Size(frame.cols,frame.rows),true);
 
     namedWindow("Result", CV_WINDOW_AUTOSIZE );
-
-    for(;;)
+    float totalFrames = 0, positiveFrame = 0, negativeFrame = 0;
+    while(true)
     {
-        cap >> frame; // get a new frame from camera
-        if(!frame.empty())
+        cap >> frame;
+        capGT >> frameGT;
+        if(!frame.empty() and !frameGT.empty())
         {
-            cvtColor(frame, frameGray, CV_BGR2GRAY );
-            int windowSize = 50,stepSize = 30;
+            int windowSize = 50, stepSize = 30, positivePrediction = 0, negativePrediction = 0;
+            float overlapRequired = 0.4, nonZeroPixelsGT, totalPixelsGT;
             string scoreString;
 
-            for(int i = 0; i < frameGray.rows - windowSize ; )
+            for(int i = 0; i < frame.rows - windowSize ; )
             {
-                for(int j = 0; j < frameGray.cols - windowSize;  )
+                for(int j = 0; j < frame.cols - windowSize;  )
                 {
                     Rect roi(j, i, windowSize, windowSize);
-                    region = frameGray(roi);
+                    region = frame(roi);
                     clfConfidence = svmObj.startSvm(region);
-                    if (clfConfidence.first > 0){
-                        cv::rectangle(frame,cv::Point(j, i),cv::Point(j + windowSize, i + windowSize),cv::Scalar(0, 0, 255));
+                    if (clfConfidence.first > 0 and clfConfidence.second >= 0.45) {
+                        regionGT = frameGT(roi);
+                        cvtColor(regionGT, regionGT, CV_BGR2GRAY );
+
+                        nonZeroPixelsGT = countNonZero(regionGT);
+                        totalPixelsGT = regionGT.rows * regionGT.cols;
+                        cout<<"Non zero pixels: "<<nonZeroPixelsGT<<"  Total pixels: "<<totalPixelsGT<<endl;
+
+                        if ( nonZeroPixelsGT/totalPixelsGT >= overlapRequired) {
+                            positivePrediction ++;
+                        }
+
+                        else {
+                            negativePrediction ++;
+                        }
+                        cv::rectangle(frame,roi,cv::Scalar(0, 0, 255));
                         scoreString = to_string(clfConfidence.second);
                         scoreString.erase(scoreString.find_last_not_of('0') + 1, string::npos );
                         putText(frame, scoreString, cv::Point(j, i + 12), FONT_HERSHEY_PLAIN, 1,cv::Scalar(0, 255, 0), 2);
@@ -116,11 +194,25 @@ int main()
                 }
                 i = i + stepSize;
             }
+            //cout<<"Positive predictions: "<< positivePrediction<< "  Negative predictions: "<< negativePrediction<< endl;
+            if (positivePrediction > negativePrediction) {
+                positiveFrame ++;
+            }
+            else {
+                negativeFrame ++;
+            }
+            totalFrames ++;
+            positivePrediction = 0, negativePrediction = 0;
             video.write(frame);
 
             imshow("Result", frame);
             if(waitKey(10) >= 0) break;
         }
+        else{
+            break;
+        }
     }
+    cout<< "Positive Frames: "<< positiveFrame<< " Negative Frames: "<<negativeFrame<< " Total Frames: "<< totalFrames<<endl;
+    cout<< "Final score: "<< positiveFrame/totalFrames<<endl;
     return 0;
 }
