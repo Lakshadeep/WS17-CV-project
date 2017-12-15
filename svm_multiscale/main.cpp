@@ -10,69 +10,60 @@
 #include <math.h>
 #include <dirent.h>
 #include "SupportVectorMachine.h"
-#include "opencv2/ximgproc/segmentation.hpp"
 
 using namespace std;
-using namespace cv::ximgproc::segmentation;
 
-int main()
-{
+void trainSVM(const char* positiveDirectory, const char* negativeDirectory) {
 
-//------------------------------------------------------------------
-// For training the svm...
+    vector<string> vehicleFiles;
+    vector<string> noVehicleFiles;
+    DIR *dpdf;
+    struct dirent *epdf;
+    dpdf = opendir(positiveDirectory);
+    if(dpdf!= NULL)
+    {
+        while (epdf = readdir(dpdf))
+        {
+            string file = epdf->d_name;
+            vehicleFiles.push_back(positiveDirectory + file);
+        }
+    }
+    closedir(dpdf);
 
-//    vector<string> vehicleFiles;
-//    vector<string> noVehicleFiles;
-//    DIR *dpdf;
-//    struct dirent *epdf;
-//    dpdf = opendir("/media/lakshadeep/Common/MAS/Semester2/computer_vision/project_final/test_data/datasets/svm_data/vehicles/");
-//    if(dpdf!= NULL)
-//    {
-//        while (epdf = readdir(dpdf))
-//        {
-//            string file = epdf->d_name;
-//            vehicleFiles.push_back("/media/lakshadeep/Common/MAS/Semester2/computer_vision/project_final/test_data/datasets/svm_data/vehicles/"+ file);
-//        }
-//    }
-//    closedir(dpdf);
-//
-//    dpdf = opendir("/media/lakshadeep/Common/MAS/Semester2/computer_vision/project_final/test_data/datasets/svm_data/non-vehicles/");
-//    if(dpdf!= NULL)
-//    {
-//        while (epdf = readdir(dpdf))
-//        {
-//            string file = epdf->d_name;
-//            noVehicleFiles.push_back("/media/lakshadeep/Common/MAS/Semester2/computer_vision/project_final/test_data/datasets/svm_data/non-vehicles/"+ file);
-//        }
-//    }
-//    closedir(dpdf);
-//
-//    SupportVectorMachine svmObj (vehicleFiles, noVehicleFiles);
-//    svmObj.startSvm();
-//------------------------------------------------------------------
+    dpdf = opendir(negativeDirectory);
+    if(dpdf!= NULL)
+    {
+        while (epdf = readdir(dpdf))
+        {
+            string file = epdf->d_name;
+            noVehicleFiles.push_back(negativeDirectory + file);
+        }
+    }
+    closedir(dpdf);
 
+    SupportVectorMachine svmObj (vehicleFiles, noVehicleFiles);
+    svmObj.startSvm();
+}
 
+int evaluate(const char* inputPath, const char* gtPath, const char* resultPath, float beliefThreshold, float overlapThreshold) {
 
     SupportVectorMachine svmObj;
 
     Mat frame, frameGT;
-    VideoCapture cap("./0009.avi"); // open the default camera
-    VideoCapture capGT("./0009_GT.avi"); // open the default camera
-    if(!cap.isOpened())
+    VideoCapture cap(inputPath);
+    VideoCapture capGT(gtPath);
+    if(!cap.isOpened() or !capGT.isOpened())
     {
         std::cout << "Failed to open" << std::endl;
         return -1;
     }
 
-    cap >> frame; // get a new frame from camera
-    //VideoWriter video(".0000_result.avi",CV_FOURCC('M','J','P','G'),10, Size(frame.cols,frame.rows),true);
+    cap >> frame;
     capGT >> frameGT;
-    VideoWriter video("result_0009.avi",CV_FOURCC('X','V','I','D'), 10 , Size(frame.cols,frame.rows),true);
-
+    VideoWriter video(resultPath,CV_FOURCC('X','V','I','D'), 10 , Size(frame.cols,frame.rows),true);
 
     namedWindow("Result", CV_WINDOW_AUTOSIZE );
     svmObj.hog.load("cars.yml");
-
 
     int no_of_pos_detections = 0, no_of_neg_detections = 0, missed_detections = 0;
     vector<vector<Point> > contours;
@@ -81,9 +72,9 @@ int main()
     int original_no_of_cars;
     int missed_cars;
 
-    for(;;)
+    while(true)
     {
-        cap >> frame; // get a new frame from camera
+        cap >> frame;
         capGT >> frameGT;
         if(!frame.empty() and !frameGT.empty())
         {
@@ -103,25 +94,22 @@ int main()
             for ( size_t j = 0; j < detections.size(); j++ )
             {
                 int total_detections = 0;
-                if(foundWeights[j] > 0.5)
+                if(foundWeights[j] > beliefThreshold)
                 {
                     Scalar color = Scalar( 0, foundWeights[j] * foundWeights[j] * 200, 0 );
                     rectangle( frame, detections[j], color, frame.cols / 400 + 1 );
 
                     Mat regionGT = frameGT(detections[j]);
-                    //cvtColor(regionGT, regionGT, CV_BGR2GRAY );
                     int nonZeroPixelsGT = countNonZero(regionGT);
                     int totalPixelsGT = regionGT.rows * regionGT.cols;
 
-                    if ((double)nonZeroPixelsGT/totalPixelsGT >= 0.3) {
+                    if ((double)nonZeroPixelsGT/totalPixelsGT >= overlapThreshold) {
                          no_of_pos_detections++;
                     }
                     else {
                          no_of_neg_detections++;
                     }
                     total_detections++;
-
-
                 }
                 missed_cars = original_no_of_cars - total_detections;
             }
@@ -134,13 +122,86 @@ int main()
             cout << "No of negative detections:" << no_of_neg_detections << endl;
             cout << "No of missed detections:" << missed_detections << endl;
 
+            video.write(frame);
+
+            imshow("Result", frame);
+            if(waitKey(10) >= 0) break;
+        }
+        else {
+            break;
+        }
+    }
+    return 0;
+}
+
+int test(const char* inputPath, const char* resultPath, float beliefThreshold) {
+
+    SupportVectorMachine svmObj;
+
+    Mat frame;
+    VideoCapture cap(inputPath);
+    if(!cap.isOpened())
+    {
+        std::cout << "Failed to open" << std::endl;
+        return -1;
+    }
+
+    cap >> frame;
+    VideoWriter video(resultPath, CV_FOURCC('X','V','I','D'), 10 , Size(frame.cols,frame.rows), true);
+
+    namedWindow("Result", CV_WINDOW_AUTOSIZE );
+    svmObj.hog.load("cars.yml");
+
+    while(true)
+    {
+        cap >> frame;
+        if(!frame.empty())
+        {
+            vector< Rect > detections;
+            vector< double > foundWeights;
+
+            svmObj.hog.detectMultiScale( frame, detections, foundWeights );
+
+            for ( size_t j = 0; j < detections.size(); j++ )
+            {
+                if(foundWeights[j] > beliefThreshold)
+                {
+                    Scalar color = Scalar( 0, foundWeights[j] * foundWeights[j] * 200, 0 );
+                    rectangle( frame, detections[j], color, frame.cols / 400 + 1 );
+                }
+            }
 
             video.write(frame);
 
             imshow("Result", frame);
             if(waitKey(10) >= 0) break;
         }
+        else {
+            break;
+        }
     }
+    return 0;
+}
 
+int main()
+{
+    //**************************** Train the svm **********************************
+
+    //trainSVM("./svm_data/vehicles/", "./svm_data/non-vehicles/");
+
+    //*****************************************************************************
+
+    //**************************** Evaluate algorithm *****************************
+
+    evaluate("./0008.avi", "./0008_GT.avi", "./result_0008.avi", 0.5, 0.3);
+
+    //*****************************************************************************
+
+    //**************************** Test algorithm *********************************
+    // This is required for videos which do not have a ground truth...
+
+    //test("./0010.avi", "./result_0010.avi", 0.5);
+
+    //*****************************************************************************
     return 0;
 }
