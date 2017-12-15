@@ -81,8 +81,11 @@ int main()
             svmObj.hog.detectMultiScale( frame, detections, foundWeights );
             for ( size_t j = 0; j < detections.size(); j++ )
             {
-                Scalar color = Scalar( 0, foundWeights[j] * foundWeights[j] * 200, 0 );
-                rectangle( frame, detections[j], color, frame.cols / 400 + 1 );
+                if(foundWeights[j] > 0.5)
+                {
+                    Scalar color = Scalar( 0, foundWeights[j] * foundWeights[j] * 200, 0 );
+                    rectangle( frame, detections[j], color, frame.cols / 400 + 1 );
+                }
             }
 
 

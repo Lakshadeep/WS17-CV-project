@@ -149,5 +149,6 @@ map<int, Mat> SupportVectorMachine::createTrainData()
         }
     }
     labels.insert( labels.end(), negativeExamples, -1 );
+    reverse(labels.begin(), labels.end());
     return trainData;
 }
