@@ -10,138 +10,52 @@
 #include <math.h>
 #include <dirent.h>
 #include "SupportVectorMachine.h"
-#include "opencv2/ximgproc/segmentation.hpp"
 
 using namespace std;
-using namespace cv::ximgproc::segmentation;
-
-int main()
-{
-
-//------------------------------------------------------------------
-// For training the svm...
-
-//    vector<string> vehicleFiles;
-//    vector<string> noVehicleFiles;
-//    DIR *dpdf;
-//    struct dirent *epdf;
-//    dpdf = opendir("./svm_data/vehicles/");
-//    if(dpdf!= NULL)
-//    {
-//        while (epdf = readdir(dpdf))
-//        {
-//            string file = epdf->d_name;
-//            vehicleFiles.push_back("./svm_data/vehicles/"+ file);
-//        }
-//    }
-//    closedir(dpdf);
-//
-//    dpdf = opendir("./svm_data/vehicles_GTI_Far/");
-//    if(dpdf!= NULL)
-//    {
-//        while (epdf = readdir(dpdf))
-//        {
-//            string file = epdf->d_name;
-//            vehicleFiles.push_back("./svm_data/vehicles_GTI_Far/"+ file);
-//        }
-//    }
-//    closedir(dpdf);
-//
-//    dpdf = opendir("./svm_data/vehicles_GTI_Left/");
-//    if(dpdf!= NULL)
-//    {
-//        while (epdf = readdir(dpdf))
-//        {
-//            string file = epdf->d_name;
-//            vehicleFiles.push_back("./svm_data/vehicles_GTI_Left/"+ file);
-//        }
-//    }
-//    closedir(dpdf);
-//
-//	dpdf = opendir("./svm_data/vehicles_GTI_MiddleClose/");
-//    if(dpdf!= NULL)
-//    {
-//        while (epdf = readdir(dpdf))
-//        {
-//            string file = epdf->d_name;
-//            vehicleFiles.push_back("./svm_data/vehicles_GTI_MiddleClose/"+ file);
-//        }
-//    }
-//    closedir(dpdf);
-//
-//	dpdf = opendir("./svm_data/vehicles_GTI_Right/");
-//    if(dpdf!= NULL)
-//    {
-//        while (epdf = readdir(dpdf))
-//        {
-//            string file = epdf->d_name;
-//            vehicleFiles.push_back("./svm_data/vehicles_GTI_Right/"+ file);
-//        }
-//    }
-//    closedir(dpdf);
-//
-//    dpdf = opendir("./svm_data/non-vehicles/");
-//    if(dpdf!= NULL)
-//    {
-//        while (epdf = readdir(dpdf))
-//        {
-//            string file = epdf->d_name;
-//            noVehicleFiles.push_back("./svm_data/non-vehicles/"+ file);
-//        }
-//    }
-//    closedir(dpdf);
-//
-//    dpdf = opendir("./svm_data/non-vehicles_GTI/");
-//    if(dpdf!= NULL)
-//    {
-//        while (epdf = readdir(dpdf))
-//        {
-//            string file = epdf->d_name;
-//            noVehicleFiles.push_back("./svm_data/non-vehicles_GTI/"+ file);
-//        }
-//    }
-//    closedir(dpdf);
-//
-//    SupportVectorMachine svmObj (vehicleFiles, noVehicleFiles);
-//    svmObj.startSvm();
-//------------------------------------------------------------------
 
 
-//------------------------------------------------------------------
-// For testing the svm...
-//    Mat testImage;
-//    pair<int, float> clfConfidence;
+void trainSVM(const char* positiveDirectory, const char* negativeDirectory) {
 
-    // Testing positive sample..
-//    cout<<"Testing positive sample..."<<endl;
-//    testImage = imread("./svm_data/vehicles/5110.png", 0);
-//    SupportVectorMachine svmObj;
-//    clfConfidence = svmObj.startSvm(testImage);
-//    cout<<"Predicted class:  "<<clfConfidence.first<<endl;
-//    cout<<"Prediction confidence:  "<<clfConfidence.second<<endl;
-//
-//    // Testing negative sample..
-//    cout<<"Testing negative sample..."<<endl;
-//    testImage = imread("./svm_data/non-vehicles/extra5060.png", 0);
-//    clfConfidence = svmObj.startSvm(testImage);
-//    cout<<"Predicted class:  "<<clfConfidence.first<<endl;
-//    cout<<"Prediction confidence:  "<<clfConfidence.second<<endl;
+    vector<string> vehicleFiles;
+    vector<string> noVehicleFiles;
+    DIR *dpdf;
+    struct dirent *epdf;
+    dpdf = opendir(positiveDirectory);
+    if(dpdf!= NULL)
+    {
+        while (epdf = readdir(dpdf))
+        {
+            string file = epdf->d_name;
+            vehicleFiles.push_back(positiveDirectory + file);
+        }
+    }
+    closedir(dpdf);
 
-//------------------------------------------------------------------
+    dpdf = opendir(negativeDirectory);
+    if(dpdf!= NULL)
+    {
+        while (epdf = readdir(dpdf))
+        {
+            string file = epdf->d_name;
+            noVehicleFiles.push_back(negativeDirectory + file);
+        }
+    }
+    closedir(dpdf);
+
+    SupportVectorMachine svmObj (vehicleFiles, noVehicleFiles);
+    svmObj.startSvm();
+}
+
+int evaluate(const char* inputPath, const char* gtPath, const char* resultPath, float windowSize, float stepSize,
+                                                    float overlapThreshold, float confidenceThreshold) {
 
     SupportVectorMachine svmObj;
     pair<int, float> clfConfidence;
 
     Mat frame, frameGT, frameGray, region, regionGT, frameYCrCb;
-    VideoCapture cap("./0008_xvid.avi");
-    if(!cap.isOpened())
-    {
-        std::cout << "Failed to open" << std::endl;
-        return -1;
-    }
-
-    VideoCapture capGT("./0008_GT.avi");
-    if(!capGT.isOpened())
+    VideoCapture cap(inputPath);
+    VideoCapture capGT(gtPath);
+    if(!cap.isOpened() or !capGT.isOpened())
     {
         std::cout << "Failed to open" << std::endl;
         return -1;
@@ -149,18 +63,18 @@ int main()
 
     cap >> frame;
     capGT >> frameGT;
-    VideoWriter video("result_0008.avi",CV_FOURCC('X','V','I','D'), 10 , Size(frame.cols,frame.rows),true);
+    VideoWriter video(resultPath, CV_FOURCC('X','V','I','D'), 10 , Size(frame.cols,frame.rows), true);
 
     namedWindow("Result", CV_WINDOW_AUTOSIZE );
-    float totalFrames = 0, positiveFrame = 0, negativeFrame = 0;
+    float totalFrames = 0, positiveFrame = 0, negativeFrame = 0, totalPosPred = 0, totalNegPred = 0, totalPred = 0;
     while(true)
     {
         cap >> frame;
         capGT >> frameGT;
         if(!frame.empty() and !frameGT.empty())
         {
-            int windowSize = 50, stepSize = 30, positivePrediction = 0, negativePrediction = 0;
-            float overlapRequired = 0.4, nonZeroPixelsGT, totalPixelsGT;
+            int positivePrediction = 0, negativePrediction = 0;
+            float nonZeroPixelsGT, totalPixelsGT;
             string scoreString;
 
             for(int i = 0; i < frame.rows - windowSize ; )
@@ -170,7 +84,7 @@ int main()
                     Rect roi(j, i, windowSize, windowSize);
                     region = frame(roi);
                     clfConfidence = svmObj.startSvm(region);
-                    if (clfConfidence.first > 0 and clfConfidence.second >= 0.45) {
+                    if (clfConfidence.first > 0 and clfConfidence.second >= confidenceThreshold) {
                         regionGT = frameGT(roi);
                         cvtColor(regionGT, regionGT, CV_BGR2GRAY );
 
@@ -178,7 +92,7 @@ int main()
                         totalPixelsGT = regionGT.rows * regionGT.cols;
                         cout<<"Non zero pixels: "<<nonZeroPixelsGT<<"  Total pixels: "<<totalPixelsGT<<endl;
 
-                        if ( nonZeroPixelsGT/totalPixelsGT >= overlapRequired) {
+                        if ( nonZeroPixelsGT/totalPixelsGT >= overlapThreshold) {
                             positivePrediction ++;
                         }
 
@@ -194,7 +108,6 @@ int main()
                 }
                 i = i + stepSize;
             }
-            //cout<<"Positive predictions: "<< positivePrediction<< "  Negative predictions: "<< negativePrediction<< endl;
             if (positivePrediction > negativePrediction) {
                 positiveFrame ++;
             }
@@ -202,6 +115,9 @@ int main()
                 negativeFrame ++;
             }
             totalFrames ++;
+            totalPosPred += positivePrediction;
+            totalNegPred += negativePrediction;
+            totalPred +=  positivePrediction + negativePrediction;
             positivePrediction = 0, negativePrediction = 0;
             video.write(frame);
 
@@ -212,7 +128,26 @@ int main()
             break;
         }
     }
-    cout<< "Positive Frames: "<< positiveFrame<< " Negative Frames: "<<negativeFrame<< " Total Frames: "<< totalFrames<<endl;
-    cout<< "Final score: "<< positiveFrame/totalFrames<<endl;
+    cout<< "Total predictions: "<< totalPred<< " Total positive predictions:"<<totalPosPred<< " Total negative predictions:"<<totalNegPred<<endl;
+    cout<< "Positive prediction ratio: "<<totalPosPred/totalPred<< " Negative prediction ratio: "<<totalNegPred/totalPred<<endl;
+    cout<<" Total Frames: "<< totalFrames<< "Positive Frames: "<< positiveFrame<< " Negative Frames: "<<negativeFrame<<endl;
+    cout<< "Final score (positive frames/ total frames): "<< positiveFrame/totalFrames<<endl;
+
+}
+
+int main()
+{
+    //**************************** Train the svm **********************************
+
+    //trainSVM("./svm_data/vehicles/", "./svm_data/non-vehicles/");
+
+    //*****************************************************************************
+
+    //**************************** Evaluate algorithm *****************************
+
+    evaluate("./0008.avi", "./0008_GT.avi", "./result_0008.avi", 50, 30, 0.5, 0.4);
+
+    //*****************************************************************************
+
     return 0;
 }
