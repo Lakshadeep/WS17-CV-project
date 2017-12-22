@@ -25,7 +25,9 @@ class SupportVectorMachine
         bool isTrainingComplete = false;
         vector<string> cars, noCars;
         Mat testImage;
-		Ptr<SVM> svmTest;
+        Ptr<SVM> svmTest;
+        int positiveExamples = 0, negativeExamples = 0;
+        HOGDescriptor hog;
 
         SupportVectorMachine(vector<string>, vector<string>);
         SupportVectorMachine();
@@ -34,6 +36,7 @@ class SupportVectorMachine
         pair<int, float> startSvm();
         pair<int, float> startSvm(Mat);
         map<int, Mat> createTrainData();
+        Mat computeHog(Mat);
         pair<Mat, Mat> extractHogFeatures(map<int, Mat>);
         Mat extractHogFeatures();
         void trainSVM(pair<Mat, Mat>);
