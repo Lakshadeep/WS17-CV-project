@@ -130,7 +130,7 @@ int evaluate(const char* inputPath, const char* gtPath, const char* resultPath, 
     }
     cout<< "Total predictions: "<< totalPred<< " Total positive predictions:"<<totalPosPred<< " Total negative predictions:"<<totalNegPred<<endl;
     cout<< "Positive prediction ratio: "<<totalPosPred/totalPred<< " Negative prediction ratio: "<<totalNegPred/totalPred<<endl;
-    cout<<" Total Frames: "<< totalFrames<< "Positive Frames: "<< positiveFrame<< " Negative Frames: "<<negativeFrame<<endl;
+    cout<<" Total Frames: "<< totalFrames<< " Positive Frames: "<< positiveFrame<< " Negative Frames: "<<negativeFrame<<endl;
     cout<< "Final score (positive frames/ total frames): "<< positiveFrame/totalFrames<<endl;
 
 }
