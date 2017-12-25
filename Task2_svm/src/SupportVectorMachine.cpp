@@ -56,27 +56,17 @@ pair<int, float> SupportVectorMachine::SVMpredict(Mat testFeatures)
 
 Mat SupportVectorMachine::computeHog(Mat image) {
 
-    Mat featuresMat, imageGray, imageYCrCb, imageYCrCbChannels[3];
-    vector< float> descriptorsGray, descriptorsCh1, descriptorsCh2, descriptorsCh3;
+    Mat featuresMat, imageYCrCb;
+    vector< float> descriptors, descriptorsYCrCb;
 
-    cvtColor(image, imageGray, CV_BGR2GRAY);
     cvtColor(image, imageYCrCb, CV_BGR2YCrCb);
-    split(imageYCrCb, imageYCrCbChannels);
 
-    hog.compute(imageGray, descriptorsGray, Size(8, 8), Size(2, 2));
-    transpose(Mat(descriptorsGray).clone(), featuresMat);
+    hog.compute(image, descriptors, Size(8, 8), Size(2, 2));
+    transpose(Mat(descriptors).clone(), featuresMat);
 
-    hog.compute(imageYCrCbChannels[0], descriptorsCh1, Size(8, 8), Size(2, 2));
-    transpose(Mat(descriptorsCh1).clone(), descriptorsCh1);
-    hconcat(featuresMat, descriptorsCh1, featuresMat);
-
-    hog.compute(imageYCrCbChannels[1], descriptorsCh2, Size(8, 8), Size(2, 2));
-    transpose(Mat(descriptorsCh2).clone(), descriptorsCh2);
-    hconcat(featuresMat, descriptorsCh2, featuresMat);
-
-    hog.compute(imageYCrCbChannels[2], descriptorsCh3, Size(8, 8), Size(2, 2));
-    transpose(Mat(descriptorsCh3).clone(), descriptorsCh3);
-    hconcat(featuresMat, descriptorsCh3, featuresMat);
+    hog.compute(imageYCrCb, descriptorsYCrCb, Size(8, 8), Size(2, 2));
+    transpose(Mat(descriptorsYCrCb).clone(), descriptorsYCrCb);
+    hconcat(featuresMat, descriptorsYCrCb, featuresMat);
 
     return featuresMat;
 }
