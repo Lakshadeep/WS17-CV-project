@@ -13,7 +13,6 @@
 
 using namespace std;
 
-
 void trainSVM(const char* positiveDirectory, const char* negativeDirectory) {
 
     vector<string> vehicleFiles;
@@ -47,7 +46,7 @@ void trainSVM(const char* positiveDirectory, const char* negativeDirectory) {
 }
 
 int evaluate(const char* inputPath, const char* gtPath, const char* resultPath, float windowSize, float stepSize,
-                                                    float overlapThreshold, float confidenceThreshold) {
+                                                    float overlapThreshold, float confidenceThreshold, ofstream& myStream) {
 
     SupportVectorMachine svmObj;
     pair<int, float> clfConfidence;
@@ -66,59 +65,69 @@ int evaluate(const char* inputPath, const char* gtPath, const char* resultPath, 
     VideoWriter video(resultPath, CV_FOURCC('X','V','I','D'), 10 , Size(frame.cols,frame.rows), true);
 
     namedWindow("Result", CV_WINDOW_AUTOSIZE );
-    float totalFrames = 0, positiveFrame = 0, negativeFrame = 0, totalPosPred = 0, totalNegPred = 0, totalPred = 0;
+
+    int no_of_pos_detections = 0, no_of_neg_detections = 0, missed_detections = 0;
+    vector<vector<Point> > contours;
+    vector<Vec4i> hierarchy;
+    Mat gt_binary;
+    int original_no_of_cars;
+    int missed_cars;
+
     while(true)
     {
         cap >> frame;
         capGT >> frameGT;
         if(!frame.empty() and !frameGT.empty())
         {
-            int positivePrediction = 0, negativePrediction = 0;
-            float nonZeroPixelsGT, totalPixelsGT;
-            string scoreString;
+            cvtColor( frameGT, frameGT, CV_BGR2GRAY );
+            blur( frameGT, frameGT, Size(3,3) );
+            threshold( frameGT, gt_binary, 100,255,THRESH_BINARY );
+            findContours( gt_binary, contours, hierarchy, RETR_TREE, CHAIN_APPROX_SIMPLE, Point(0, 0) );
+            original_no_of_cars =  contours.size();
 
+            string scoreString;
+            missed_cars = original_no_of_cars;
             for(int i = 0; i < frame.rows - windowSize ; )
             {
                 for(int j = 0; j < frame.cols - windowSize;  )
                 {
+                    bool isPositiveDetection = false;
                     Rect roi(j, i, windowSize, windowSize);
                     region = frame(roi);
                     clfConfidence = svmObj.startSvm(region);
                     if (clfConfidence.first > 0 and clfConfidence.second >= confidenceThreshold) {
                         regionGT = frameGT(roi);
-                        cvtColor(regionGT, regionGT, CV_BGR2GRAY );
 
-                        nonZeroPixelsGT = countNonZero(regionGT);
-                        totalPixelsGT = regionGT.rows * regionGT.cols;
-                        cout<<"Non zero pixels: "<<nonZeroPixelsGT<<"  Total pixels: "<<totalPixelsGT<<endl;
+                        int nonZeroPixelsGT = countNonZero(regionGT);
+                        int totalPixelsGT = regionGT.rows * regionGT.cols;
 
-                        if ( nonZeroPixelsGT/totalPixelsGT >= overlapThreshold) {
-                            positivePrediction ++;
+                        if ( (double)nonZeroPixelsGT/totalPixelsGT >= overlapThreshold) {
+                            no_of_pos_detections++;
+                            isPositiveDetection = true;
                         }
 
                         else {
-                            negativePrediction ++;
+                            no_of_neg_detections ++;
                         }
                         cv::rectangle(frame,roi,cv::Scalar(0, 0, 255));
                         scoreString = to_string(clfConfidence.second);
                         scoreString.erase(scoreString.find_last_not_of('0') + 1, string::npos );
                         putText(frame, scoreString, cv::Point(j, i + 12), FONT_HERSHEY_PLAIN, 1,cv::Scalar(0, 255, 0), 2);
                     }
+                    if (isPositiveDetection) missed_cars--;
                     j = j + stepSize;
                 }
                 i = i + stepSize;
             }
-            if (positivePrediction > negativePrediction) {
-                positiveFrame ++;
+            if(missed_cars > 0)
+            {
+                missed_detections = missed_detections + missed_cars;
             }
-            else {
-                negativeFrame ++;
-            }
-            totalFrames ++;
-            totalPosPred += positivePrediction;
-            totalNegPred += negativePrediction;
-            totalPred +=  positivePrediction + negativePrediction;
-            positivePrediction = 0, negativePrediction = 0;
+
+            cout << "No of positive detections:" << no_of_pos_detections << endl;
+            cout << "No of negative detections:" << no_of_neg_detections << endl;
+            cout << "No of missed detections:" << missed_detections << endl;
+
             video.write(frame);
 
             imshow("Result", frame);
@@ -128,11 +137,9 @@ int evaluate(const char* inputPath, const char* gtPath, const char* resultPath, 
             break;
         }
     }
-    cout<< "Total predictions: "<< totalPred<< " Total positive predictions:"<<totalPosPred<< " Total negative predictions:"<<totalNegPred<<endl;
-    cout<< "Positive prediction ratio: "<<totalPosPred/totalPred<< " Negative prediction ratio: "<<totalNegPred/totalPred<<endl;
-    cout<<" Total Frames: "<< totalFrames<< " Positive Frames: "<< positiveFrame<< " Negative Frames: "<<negativeFrame<<endl;
-    cout<< "Final score (positive frames/ total frames): "<< positiveFrame/totalFrames<<endl;
+    myStream << no_of_pos_detections << "," << no_of_neg_detections << "," << missed_detections << "," << (double)(no_of_pos_detections)/(no_of_pos_detections+missed_detections) << "," << (double)no_of_neg_detections/no_of_pos_detections << endl;
 
+    destroyAllWindows();
 }
 
 int main()
@@ -145,9 +152,34 @@ int main()
 
     //**************************** Evaluate algorithm *****************************
 
-    evaluate("./0008.avi", "./0008_GT.avi", "./result_0008.avi", 50, 30, 0.5, 0.4);
+    ofstream myStream;
+    myStream.open("result.txt", ofstream::app);
+    myStream << "Video," << "Positive Detections," << "Negative Detections," << "Missed Detections," << "Accuracy," << "Negative to Positive Ratio" << endl;
+    //myStream << "8,";
+    //evaluate("./videos/0008.avi", "./videos/0008_GT.avi", "./result_0008.avi", 50, 30, 0.3, 0.4, myStream);
+
+
+    //*****************************************************************************
+    string inputPath, gtPath, resultPath;
+
+    for(int i = 0; i< 21; i++) {
+
+        if (i<=9) {
+            inputPath = "./videos/000"+to_string(i)+".avi";
+            gtPath = "./videos/000"+to_string(i)+"_GT.avi";
+            resultPath = "./result/result_000"+to_string(i)+".avi";
+        }
+        else {
+            inputPath = "./videos/00"+to_string(i)+".avi";
+            gtPath = "./videos/00"+to_string(i)+"_GT.avi";
+            resultPath = "./result/result_00"+to_string(i)+".avi";
+        }
+        myStream << to_string(i) << ",";
+        evaluate(inputPath.c_str(), gtPath.c_str(), resultPath.c_str(), 50, 30, 0.3, 0.4, myStream);
+    }
 
     //*****************************************************************************
 
+    myStream.close();
     return 0;
 }
