@@ -90,10 +90,10 @@ int evaluate(const char* inputPath, const char* gtPath, const char* resultPath, 
 
             svmObj.hog.detectMultiScale( frame, detections, foundWeights );
 
-
+            missed_cars = original_no_of_cars;
             for ( size_t j = 0; j < detections.size(); j++ )
             {
-                int total_detections = 0;
+                bool isPositiveDetection = false;
                 if(foundWeights[j] > beliefThreshold)
                 {
                     Scalar color = Scalar( 0, foundWeights[j] * foundWeights[j] * 200, 0 );
@@ -105,13 +105,13 @@ int evaluate(const char* inputPath, const char* gtPath, const char* resultPath, 
 
                     if ((double)nonZeroPixelsGT/totalPixelsGT >= overlapThreshold) {
                          no_of_pos_detections++;
+                         isPositiveDetection = true;
                     }
                     else {
                          no_of_neg_detections++;
                     }
-                    total_detections++;
                 }
-                missed_cars = original_no_of_cars - total_detections;
+                if (isPositiveDetection) missed_cars--;
             }
             if(missed_cars > 0)
             {
