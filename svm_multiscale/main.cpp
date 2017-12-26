@@ -45,7 +45,8 @@ void trainSVM(const char* positiveDirectory, const char* negativeDirectory) {
     svmObj.startSvm();
 }
 
-int evaluate(const char* inputPath, const char* gtPath, const char* resultPath, float beliefThreshold, float overlapThreshold) {
+int evaluate(const char* inputPath, const char* gtPath, const char* resultPath, float beliefThreshold, float overlapThreshold, ofstream& myStream)
+{
 
     SupportVectorMachine svmObj;
 
@@ -131,7 +132,8 @@ int evaluate(const char* inputPath, const char* gtPath, const char* resultPath, 
             break;
         }
     }
-    return 0;
+    myStream << no_of_pos_detections << "," << no_of_neg_detections << "," << missed_detections << "," << (double)(no_of_pos_detections)/(no_of_pos_detections+missed_detections) << "," << (double)no_of_neg_detections/no_of_pos_detections << endl;
+    destroyAllWindows();
 }
 
 int test(const char* inputPath, const char* resultPath, float beliefThreshold) {
@@ -193,9 +195,44 @@ int main()
 
     //**************************** Evaluate algorithm *****************************
 
-    evaluate("./0008.avi", "./0008_GT.avi", "./result_0008.avi", 0.5, 0.3);
+    //evaluate("./0000.avi", "./0000_GT.avi", "./result_0000.avi", 0.5, 0.3);
 
     //*****************************************************************************
+
+
+    //**************************** Evaluate algorithm *****************************
+
+    ofstream myStream;
+    myStream.open("result.txt", ofstream::app);
+    myStream << "Video," << "Positive Detections," << "Negative Detections," << "Missed Detections," << "Accuracy," << "Negative to Positive Ratio" << endl;
+    //myStream << "8,";
+    //evaluate("./videos/0008.avi", "./videos/0008_GT.avi", "./result_0008.avi", 50, 30, 0.3, 0.4, myStream);
+
+
+    //*****************************************************************************
+    string inputPath, gtPath, resultPath;
+
+    for(int i = 0; i< 21; i++) {
+
+        if (i<=9) {
+            inputPath = "./videos/000"+to_string(i)+".avi";
+            gtPath = "./videos/000"+to_string(i)+"_GT.avi";
+            resultPath = "./result/result_000"+to_string(i)+".avi";
+        }
+        else {
+            inputPath = "./videos/00"+to_string(i)+".avi";
+            gtPath = "./videos/00"+to_string(i)+"_GT.avi";
+            resultPath = "./result/result_00"+to_string(i)+".avi";
+        }
+        myStream << to_string(i) << ",";
+        evaluate(inputPath.c_str(), gtPath.c_str(), resultPath.c_str(), 0.5, 0.3, myStream);
+    }
+
+    //*****************************************************************************
+
+
+
+
 
     //**************************** Test algorithm *********************************
     // This is required for videos which do not have a ground truth...
