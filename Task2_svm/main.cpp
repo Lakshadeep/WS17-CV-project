@@ -51,7 +51,7 @@ int evaluate(const char* inputPath, const char* gtPath, const char* resultPath, 
     SupportVectorMachine svmObj;
     pair<int, float> clfConfidence;
 
-    Mat frame, frameGT, frameGray, region, regionGT, frameYCrCb;
+    Mat frame, frameGT, region, regionGT;
     VideoCapture cap(inputPath);
     VideoCapture capGT(gtPath);
     if(!cap.isOpened() or !capGT.isOpened())
@@ -65,8 +65,7 @@ int evaluate(const char* inputPath, const char* gtPath, const char* resultPath, 
     VideoWriter video(resultPath, CV_FOURCC('X','V','I','D'), 10 , Size(frame.cols,frame.rows), true);
 
     namedWindow("Result", CV_WINDOW_AUTOSIZE );
-
-    int no_of_pos_detections = 0, no_of_neg_detections = 0, missed_detections = 0;
+    int truePositives = 0, falsePositives = 0, falseNegatives = 0, allTruePositives = 0, CGT = 0;
     vector<vector<Point> > contours;
     vector<Vec4i> hierarchy;
     Mat gt_binary;
@@ -77,6 +76,7 @@ int evaluate(const char* inputPath, const char* gtPath, const char* resultPath, 
     {
         cap >> frame;
         capGT >> frameGT;
+
         if(!frame.empty() and !frameGT.empty())
         {
             cvtColor( frameGT, frameGT, CV_BGR2GRAY );
@@ -84,9 +84,16 @@ int evaluate(const char* inputPath, const char* gtPath, const char* resultPath, 
             threshold( frameGT, gt_binary, 100,255,THRESH_BINARY );
             findContours( gt_binary, contours, hierarchy, RETR_TREE, CHAIN_APPROX_SIMPLE, Point(0, 0) );
             original_no_of_cars =  contours.size();
+            vector<Rect> boundRect( contours.size() );
+
+            for( int i = 0; i < contours.size(); i++ )
+            {
+                boundRect[i] = boundingRect( Mat(contours[i]) );
+            }
 
             string scoreString;
             missed_cars = original_no_of_cars;
+
             for(int i = 0; i < frame.rows - windowSize ; )
             {
                 for(int j = 0; j < frame.cols - windowSize;  )
@@ -96,48 +103,64 @@ int evaluate(const char* inputPath, const char* gtPath, const char* resultPath, 
                     region = frame(roi);
                     clfConfidence = svmObj.startSvm(region);
                     if (clfConfidence.first > 0 and clfConfidence.second >= confidenceThreshold) {
-                        regionGT = frameGT(roi);
 
+                        regionGT = frameGT(roi);
                         int nonZeroPixelsGT = countNonZero(regionGT);
                         int totalPixelsGT = regionGT.rows * regionGT.cols;
 
-                        if ( (double)nonZeroPixelsGT/totalPixelsGT >= overlapThreshold) {
-                            no_of_pos_detections++;
-                            isPositiveDetection = true;
+                        for (int recIndex = 0; recIndex < boundRect.size(); recIndex++) {
+                            if ((double)((boundRect[recIndex] & roi).area())/totalPixelsGT >= overlapThreshold ) {
+                                isPositiveDetection = true;
+                                truePositives++;
+                                boundRect.erase(boundRect.begin() + recIndex);
+                                break;
+                            }
                         }
 
-                        else {
-                            no_of_neg_detections ++;
+                        if ( (double)nonZeroPixelsGT/totalPixelsGT >= overlapThreshold) {
+                            allTruePositives ++;
                         }
+                        else {
+                            falsePositives ++;
+                        }
+
                         cv::rectangle(frame,roi,cv::Scalar(0, 0, 255));
                         scoreString = to_string(clfConfidence.second);
                         scoreString.erase(scoreString.find_last_not_of('0') + 1, string::npos );
                         putText(frame, scoreString, cv::Point(j, i + 12), FONT_HERSHEY_PLAIN, 1,cv::Scalar(0, 255, 0), 2);
                     }
                     if (isPositiveDetection) missed_cars--;
+
                     j = j + stepSize;
                 }
                 i = i + stepSize;
             }
+
             if(missed_cars > 0)
             {
-                missed_detections = missed_detections + missed_cars;
+                falseNegatives = falseNegatives + missed_cars;
             }
 
-            cout << "No of positive detections:" << no_of_pos_detections << endl;
-            cout << "No of negative detections:" << no_of_neg_detections << endl;
-            cout << "No of missed detections:" << missed_detections << endl;
+            CGT += original_no_of_cars;
+
+            cout << "No of positive detections:" << truePositives << endl;
+            cout << "No of negative detections:" << falsePositives << endl;
+            cout << "No of missed detections:" << falseNegatives << endl;
 
             video.write(frame);
 
             imshow("Result", frame);
-            if(waitKey(10) >= 0) break;
+            if(waitKey(1) >= 0) break;
         }
         else{
             break;
         }
     }
-    myStream << no_of_pos_detections << "," << no_of_neg_detections << "," << missed_detections << "," << (double)(no_of_pos_detections)/(no_of_pos_detections+missed_detections) << "," << (double)no_of_neg_detections/no_of_pos_detections << endl;
+    myStream << CGT << ",";
+    myStream << truePositives << "," << allTruePositives - truePositives << "," << falsePositives << "," << falseNegatives << ",";
+    myStream << (double)(truePositives)/(CGT) << "," ;
+    myStream << (double)(truePositives)/(truePositives+falsePositives) << "," ;
+    myStream << (double)(truePositives)/(truePositives+falseNegatives) << endl;
 
     destroyAllWindows();
 }
@@ -154,12 +177,10 @@ int main()
 
     ofstream myStream;
     myStream.open("result.txt", ofstream::app);
-    myStream << "Video," << "Positive Detections," << "Negative Detections," << "Missed Detections," << "Accuracy," << "Negative to Positive Ratio" << endl;
-    //myStream << "8,";
-    //evaluate("./videos/0008.avi", "./videos/0008_GT.avi", "./result_0008.avi", 50, 30, 0.3, 0.4, myStream);
+    myStream << "Video,";
+    myStream << "CGT," << "True Positives," << "Repeated True Positives," << "False Positives," << "False Negatives,";
+    myStream << "Accuracy," << "Precision," << "Recall" << endl;
 
-
-    //*****************************************************************************
     string inputPath, gtPath, resultPath;
 
     for(int i = 0; i< 21; i++) {
@@ -175,11 +196,11 @@ int main()
             resultPath = "./result/result_00"+to_string(i)+".avi";
         }
         myStream << to_string(i) << ",";
-        evaluate(inputPath.c_str(), gtPath.c_str(), resultPath.c_str(), 50, 30, 0.3, 0.4, myStream);
+        evaluate(inputPath.c_str(), gtPath.c_str(), resultPath.c_str(), 50, 30, 0.3, 0.45, myStream);
     }
 
-    //*****************************************************************************
-
     myStream.close();
+
+    //*****************************************************************************
     return 0;
 }
