@@ -1,3 +1,10 @@
+/*********************************** NOTE ********************************************/
+/// This program detects the distant cars using classical computer vision approach
+
+/// To run this program you need to install segmentation module from
+/// ximgproc which is currently provided with opencv_contrib repository.
+/*************************************************************************************/
+
 #include <opencv2/core.hpp>
 #include <opencv2/imgcodecs.hpp>
 #include <opencv2/highgui.hpp>
@@ -38,7 +45,6 @@ string model_directory = "/media/lakshadeep/Common/MAS/Semester2/computer_vision
 string experiment_results_directory = "/media/lakshadeep/Common/MAS/Semester2/computer_vision/project_final/experiment_results/";
 
 
-
 float correlation(Mat reg_prop, vector<string> model_list)
 {
     float corr = 0.0, pt = 0, sum_T= 0, sum_R = 0, template_count = 0;
@@ -55,17 +61,25 @@ float correlation(Mat reg_prop, vector<string> model_list)
         if(model_list[index].find(".png") != string::npos)
         {
             T = imread(model_list[index], 1);
-            //pt = countNonZero(T);
-            //T.convertTo(T, CV_32F);
-            //sum_T = sum(T)[0];
-            //corr += ((pt * sum(R.mul(T))[0]) - (sum_R * sum_T)) / (sqrt((pt * sum(R.mul(R))[0]) - pow(sum_R,2)) * sqrt((pt * sum(T.mul(T))[0]) - pow(sum_T,2)));
+
+            /// uncomment to apply pixelwise correlation
+            /**
+            pt = countNonZero(T);
+            T.convertTo(T, CV_32F);
+            sum_T = sum(T)[0];
+            corr += ((pt * sum(R.mul(T))[0]) - (sum_R * sum_T)) / (sqrt((pt * sum(R.mul(R))[0]) - pow(sum_R,2)) * sqrt((pt * sum(T.mul(T))[0]) - pow(sum_T,2)));
+            **/
+
+            /// uncomment to use SSIM
             ssim += getMSSIM(R, T);
+
             template_count ++;
         }
         index++;
     }
 
-    return sum(ssim)[0]/ (template_count*3);
+    // return corr;                            // for pixelwise correlation
+    return sum(ssim)[0]/ (template_count*3);   // for ssim
 }
 
 // from opencv documentation...
@@ -136,18 +150,13 @@ int main(int, char**)
 
     namedWindow("Original", CV_WINDOW_AUTOSIZE );
     namedWindow("Thresholded", CV_WINDOW_AUTOSIZE );
-    //namedWindow("SS", CV_WINDOW_AUTOSIZE );
-    //namedWindow("Segmented", CV_WINDOW_AUTOSIZE );
-
-    //namedWindow("Region_Proposal", CV_WINDOW_AUTOSIZE);
-    //namedWindow("Model", CV_WINDOW_AUTOSIZE);
 
     cap >> frame; // get a new frame from camera
     resize(frame, frame, Size(), 0.5, 0.5);
     VideoWriter video("distant_car_detection_0008_1.avi",CV_FOURCC('M','J','P','G'),10, Size(frame.cols,frame.rows),true);
     int it_control = 0;
 
-    for(;;)//for(;;) //while(it_control< 1)
+    for(;;)
     {
         cap >> frame; // get a new frame from camera
         if(!frame.empty())
@@ -162,19 +171,17 @@ int main(int, char**)
             Sobel(frame_gray, grad_y, ddepth, 0, 1, 3, scale, delta, BORDER_DEFAULT );
             convertScaleAbs( grad_y, abs_grad_y );
 
-            /// Total Gradient (approximate)
+            // Total Gradient (approximate)
             addWeighted( abs_grad_x, 0.3, abs_grad_y, 0.7, 0, grad );
 
             Mat thresholded_grad;
             threshold(grad, thresholded_grad, 50 ,255,THRESH_BINARY );
 
-            //Canny(frame, grad, 100, 150, 3);
-
             Mat cropped;
             Mat region_proposal;
             int i = 0, j = 0;
-            int window_size = 100;
-            int step_size = 40;
+            int window_size = 100;  /// set sliding window size here
+            int step_size = 40;     /// set sliding window step size here
 
             for(i = 0; i < thresholded_grad.rows - window_size ; )
             {
@@ -188,14 +195,17 @@ int main(int, char**)
                     int count_same = 0;
                     for( size_t i = 0; i < lines.size(); i++ )
                     {
-                        //Vec4i l = lines[i];
                         double angle = lines[i][1];
-                        //cout << angle << endl;
-                        if(((85 < angle  &&  angle < 95) || (265 < angle  &&  angle < 275)) && (lines[i][0] > 20)){
-                            //cout<<"True"<<endl;
-                            count_same++;}
-                            //line( frame, Point(l[0], l[1]), Point(l[2], l[3]), Scalar(0,0,255), 3, CV_AA);
+
+                        // we look for horizontal parallel lines here
+                        if(((85 < angle  &&  angle < 95) || (265 < angle  &&  angle < 275)) && (lines[i][0] > 20))
+                        {
+                            count_same++;
+                        }
+                        // uncomment for visualising the lines
+                        // line( frame, Point(l[0], l[1]), Point(l[2], l[3]), Scalar(0,0,255), 3, CV_AA);
                     }
+
                     if(count_same > 1)
                     {
                         cv::rectangle(frame,cv::Point(j, i),cv::Point(j + window_size, i + window_size),cv::Scalar(255, 0, 0));
@@ -220,12 +230,12 @@ int main(int, char**)
                         }
 
                         int x,y, h, w;
-                        for(int sq= 0; sq!= squares.size()-1; sq++) {
-                            //imshow("SS", im_gray(squares.at(sq)));
-                            //if(waitKey(300) >= 0) break;
+
+                        for(int sq= 0; sq!= squares.size()-1; sq++)
+                        {
                             Rect current_square = squares.at(sq);
                             score = correlation(im_gray(current_square), files);
-                            //score = 0.0;
+
                             x = current_square.x;
                             y = current_square.y;
                             h = current_square.height;
@@ -250,7 +260,7 @@ int main(int, char**)
             video.write(frame);
 
             imshow("Original", frame);
-            imshow("Thresholded", thresholded_grad);
+
             if(waitKey(10) >= 0) break;
             it_control ++;
         }

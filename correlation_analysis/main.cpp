@@ -1,3 +1,10 @@
+/*********************************** NOTE ********************************************/
+/// This program was used for performing the analysis of pixel-wise correlation technique.
+/// It takes the input image, applies pixel-wise correlation to it with each template
+/// and saves the results in a text file.
+/*************************************************************************************/
+
+
 #include <opencv2/core.hpp>
 #include <opencv2/imgcodecs.hpp>
 #include <opencv2/highgui.hpp>

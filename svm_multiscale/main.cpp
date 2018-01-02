@@ -125,6 +125,7 @@ int evaluate(const char* inputPath, const char* gtPath, const char* resultPath, 
             video.write(frame);
 
             imshow("Result", frame);
+            imshow("Ground Truth", frameGT);
             if(waitKey(10) >= 0) break;
         }
         else {
@@ -193,7 +194,7 @@ int main()
 
     //**************************** Evaluate algorithm *****************************
 
-    evaluate("./0008.avi", "./0008_GT.avi", "./result_0008.avi", 0.5, 0.3);
+    evaluate("./0011.avi", "./0011_GT.avi", "./result_0000.avi", 0.5, 0.3);
 
     //*****************************************************************************
 

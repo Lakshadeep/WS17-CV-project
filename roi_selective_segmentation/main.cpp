@@ -1,3 +1,9 @@
+/*********************************** NOTE ********************************************/
+/// This program was used for performing the analysis of selective segmentation 
+/// technique. It takes an input image, applies selective segmentation on it and 
+/// save the results in specified directory. 
+/*************************************************************************************/
+
 #include <opencv2/core.hpp>
 #include <opencv2/imgcodecs.hpp>
 #include <opencv2/highgui.hpp>
@@ -47,7 +53,6 @@ int main(int, char**)
         Mat cropped =  roi(region);
         string name = to_string(i) + string(".png");
         imwrite(experiment_results_directory + name, cropped);
-        //cv::rectangle(roi,cv::Point(y,x),cv::Point(y + h, x + w),cv::Scalar(0, 0, 255));
     }
     imshow("Original", roi);
     while(1)

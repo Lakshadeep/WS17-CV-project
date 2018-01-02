@@ -1,3 +1,10 @@
+/*********************************** NOTE ********************************************/
+/// This program was used for performing the analysis of our algorithm for proposing
+/// regions of interest. It takes the input video and saves all the proposed regions of
+/// interest in specified directory.
+/*************************************************************************************/
+
+
 #include <opencv2/core.hpp>
 #include <opencv2/imgcodecs.hpp>
 #include <opencv2/highgui.hpp>
@@ -15,7 +22,7 @@ using namespace cv;
 using namespace std;
 using namespace cv::ximgproc::segmentation;
 
-/// Generate grad_x and grad_y
+// Generate grad_x and grad_y
 Mat grad_x, grad_y;
 Mat abs_grad_x, abs_grad_y;
 Mat grad;
@@ -93,7 +100,6 @@ int main(int, char**)
             Mat thresholded_grad;
             threshold(grad, thresholded_grad, 50 ,255,THRESH_BINARY );
 
-            //Canny(frame, grad, 100, 150, 3);
 
             Mat cropped;
             Mat region_proposal;
@@ -110,18 +116,15 @@ int main(int, char**)
                     Mat original_roi = frame(roi);
 
                     vector<Vec4i> lines;
-                    HoughLinesP(cropped, lines, 1, CV_PI/180, 50, 20, 10 ); //50,20,10
+                    HoughLinesP(cropped, lines, 1, CV_PI/180, 50, 20, 10 );
                     int count_same = 0;
                     for( size_t i = 0; i < lines.size(); i++ )
                     {
-                        //Vec4i l = lines[i];
                         double angle = lines[i][1];
-                        //cout << angle << endl;
                         if(((85 < angle  &&  angle < 95) || (265 < angle  &&  angle < 275)) && (lines[i][0] > 20))
                         {
                             count_same++;
                         }
-
                     }
                     if(count_same > 1)
                     {
@@ -129,13 +132,10 @@ int main(int, char**)
                         imwrite(experiment_results_directory + name, original_roi);
                     }
 
-
-
                     j = j + step_size;
                 }
                 i = i + step_size;
             }
-
             imshow("Original", frame);
             if(waitKey(10) >= 0) break;
             it_control ++;
